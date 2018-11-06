@@ -110,13 +110,12 @@ class TkThread(object):
         self._call_from_data = []  # for main thread
         self._call_from_name = self.root.register(self._call_from)
         self._thread_queue = queue.Queue()
+        self._results = set()
 
         self._running = True
         self._th = threading.Thread(target=self._tcl_thread)
         self._th.daemon = True
         self._th.start()
-
-        self._results = set()
 
     def _call_from(self):
         # This executes in the main thread, called from the Tcl interpreter
