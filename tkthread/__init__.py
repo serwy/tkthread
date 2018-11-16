@@ -7,40 +7,64 @@ Versions - CPython 2.7/3.x, PyPy 2.7/3.x
 Roger D. Serwy
 2018-03-23
 
+Synopsis
+--------
+
+The `tkthread` module easily allows Python threads
+to interact with Tk.
+
 
 Background
 ----------
 
 The Tcl/Tk language is shipped with Python, and follows a
 different threading model than Python itself which can
-raise obtuse error when mixing Python threads with Tk, such as:
+raise obtuse errors when mixing Python threads with Tk, such as:
 
     RuntimeError: main thread is not in main loop
     RuntimeError: Calling Tcl from different apartment
-    NotImplementedError('Call from another thread',)
+    NotImplementedError: Call from another thread
 
 Tcl can have many isolated interpreters running, and are
-tagged to a particular system thread. Calling a Tcl interpreter
+tagged to a particular OS thread. Calling a Tcl interpreter
 from a different thread raises the apartment error.
+
+The _tkinter module detect if a Python thread is different
+from the Tcl interpreter thread, and then waits one second
+to acquire a lock on the main thread. If there is a time-out,
+a RuntimeError is raised.
 
 Usage
 -----
 
-The `tkthread` module provides `tkt`, a callable instance of
-`TkThread` which synchronously interacts with the main thread.
+The `tkthread` module provides the `TkThread` class,
+which can synchronously interact with the main thread.
 
-    text.insert('end-1c', 'some text')       # fails
-    tkt(text.insert, 'end-1c', 'some text')  # succeeds
+    import time
+    import threading
 
+    def run(func):
+        threading.Thread(target=func).start()
 
-Other
------
+    from tkthread import tk, TkThread
 
-If you receive the following error:
+    root = tk.Tk()
+    root.wm_title('initializing...')
 
-    RuntimeError: Tcl is threaded but _tkinter is not
+    tkt = TkThread(root)  # make the thread-safe callable
 
-then your binaries are built with the wrong configuration flags.
+    run(lambda: root.wm_title('FAILURE'))
+    run(lambda: tkt(root.wm_title, 'SUCCESS'))
+
+    root.update()
+    time.sleep(2)  # _tkinter.c:WaitForMainloop fails
+    root.mainloop()
+
+There is an optional `.install()` method on `TkThread` which
+intercepts Python-to-Tk calls. This must be called on the
+default root, before the creation of child widgets. There is
+a slight performance penalty for Tkinter widgets that operate only
+on the main thread.
 
 
 Legal
@@ -61,7 +85,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-
+import functools
 import threading
 import sys
 
@@ -77,10 +101,10 @@ else:
     _main_thread = threading.main_thread()
 
 
-__all__ = ['TkThread', 'tk', 'tkt', 'Result']
+__all__ = ['TkThread', 'tk', 'Result']
 
 class Result(object):
-    """Cross-thread synchronization"""
+    """Cross-thread synchronization of a result"""
     def __init__(self):
         self.event = threading.Event()
         self.result = None
@@ -98,9 +122,47 @@ class Result(object):
         else:
             return self.result
 
+class _TkIntercept(object):
+    """ wrapper to a _tkinter.tkapp object """
+
+    # set of functions to intercept
+    _intercept = set(['call', 'createcommand',
+                      'setvar','globalsetvar',
+                      'getvar', 'globalgetvar',
+                      'unsetvar', 'globalunsetvar'
+                      ])
+
+    def __init__(self, tk, tkt):
+        object.__setattr__(self, '__tk__', tk)
+        object.__setattr__(self, '__tkt__', tkt)
+
+        lookup = {}
+        for name in self._intercept:
+            what = getattr(tk, name)
+            lookup[name] = functools.partial(tkt, what)
+
+        object.__setattr__(self, '__lookup__', lookup)
+
+    def __getattr__(self, name):
+        ret = self.__lookup__.get(name, None)
+        if ret is None:
+            return getattr(self.__tk__, name)
+        else:
+            return ret
+
+    def __setattr__(self, name, value):  # FIXME: needed?
+        if name in self._intercept:
+            raise AttributeError('%s is read-only' % name)
+        object.__setattr__(self, name, value)
+
 
 class TkThread(object):
     def __init__(self, root):
+
+        if hasattr(root, 'tkt'):
+            raise RuntimeError('already installed')
+        root.tkt = self
+
         if threading.current_thread() is not _main_thread:
             raise RuntimeError('Must be started from main thread')
         self.root = root
@@ -116,6 +178,14 @@ class TkThread(object):
         self._th = threading.Thread(target=self._tcl_thread)
         self._th.daemon = True
         self._th.start()
+
+    def install(self):
+        """Redirect tk.call instead"""
+        # there is a performance penalty for main-thread-only code
+        if self.root.children:
+            raise RuntimeError('root can not have children')
+        new_tk = _TkIntercept(self.root.tk, self)
+        self.root.tk = new_tk
 
     def _call_from(self):
         # This executes in the main thread, called from the Tcl interpreter
@@ -133,6 +203,7 @@ class TkThread(object):
 
     def _tcl_thread(self):
         # Operates in its own thread, with its own Tcl interpreter
+
         tcl = tk.Tcl()
         tcl.eval('package require Thread')
 
@@ -164,11 +235,7 @@ class TkThread(object):
         while self._results:
             tr = self._results.pop()
             tr.set('destroying', is_error=True)
-        self.root.destroy()
         self._running = False
         self._thread_queue.put(None)
+        self.root.destroy()
 
-
-_root = tk.Tk()
-_root.withdraw()
-tkt = TkThread(_root)
