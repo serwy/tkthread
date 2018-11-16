@@ -100,8 +100,9 @@ else:
     import queue
     _main_thread = threading.main_thread()
 
+from ._version import __version__
 
-__all__ = ['TkThread', 'tk', 'Result']
+__all__ = ['TkThread', 'tk', 'Result', '__version__']
 
 class Result(object):
     """Cross-thread synchronization of a result"""
