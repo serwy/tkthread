@@ -34,18 +34,14 @@ of a call for execution.
 The `tkthread` module provides the `TkThread` class, which can
 synchronously interact with the main thread.
 
-    import time
-    import threading
-
-    def run(func):
-        threading.Thread(target=func).start()
-
     from tkthread import tk, TkThread
 
-    root = tk.Tk()
-    root.wm_title('initializing...')
-
+    root = tk.Tk()        # create the root window
     tkt = TkThread(root)  # make the thread-safe callable
+
+    import threading, time
+    def run(func):
+        threading.Thread(target=func).start()
 
     run(lambda: root.wm_title('FAILURE'))
     run(lambda: tkt(root.wm_title, 'SUCCESS'))
@@ -59,7 +55,7 @@ to execute and compute a result, which is then passed back for
 return from `tkt()`. A non-synchronous version also exists that
 does not block:
 
-    tkt.nosync(text.insert, 'end-1c', 'some text')
+    tkt.nosync(root.wm_title, 'ALSO SUCCESS')
 
 There is an optional `tkt.install()` method which intercepts 
 Python-to-Tk calls. This must be called on the default root, 
