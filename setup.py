@@ -13,9 +13,10 @@ setup(
     keywords="tkinter threading",
     url="http://github.com/serwy/tkthread",
     packages=['tkthread'],
-    description='Multithreading with Tkinter',
+    description='Easy multithreading with Tkinter',
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
+    platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -25,5 +26,4 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Software Development :: User Interfaces',
     ],
-
 )
