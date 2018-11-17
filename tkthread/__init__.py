@@ -232,7 +232,7 @@ class TkThread(object):
         self._thread_queue.put((func, args, kwargs, None))
 
     def destroy(self):
-        """Destroy the root object.
+        """Destroy the TkThread object.
 
         Threads that call into TkThread must be stopped
         before calling .destroy() to avoid missing pending
@@ -243,5 +243,4 @@ class TkThread(object):
         while self._results:
             tr = self._results.pop()
             tr.set('destroying', is_error=True)
-        self.root.destroy()
 
