@@ -161,7 +161,7 @@ class TkThread(object):
     def __init__(self, root):
 
         if hasattr(root, 'tkt'):
-            raise RuntimeError('already installed')
+            raise RuntimeError('TkThread instance already created')
         root.tkt = self
 
         if threading.current_thread() is not _main_thread:
@@ -181,7 +181,7 @@ class TkThread(object):
         self._th.start()
 
     def install(self):
-        """Redirect tk.call instead"""
+        """Automatically redirect Python-to-Tk calls"""
         # there is a performance penalty for main-thread-only code
         if self.root.children:
             raise RuntimeError('root can not have children')
