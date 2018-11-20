@@ -4,31 +4,32 @@ Easy multithreading with Tkinter on CPython 2.7/3.x and PyPy 2.7/3.x.
 
 ## Background
 
-The Tcl/Tk language is shipped with Python, and follows a
-different threading model than Python itself which can
-raise obtuse errors when mixing Python threads with Tkinter, such as:
+The Tcl/Tk language that comes with Python follows a different threading
+model than Python itself which can raise obtuse errors when mixing Python
+threads with Tkinter, such as:
 
     RuntimeError: main thread is not in main loop
     RuntimeError: Calling Tcl from different apartment
     NotImplementedError: Call from another thread
 
-Tcl can have many isolated interpreters running, and are
-tagged to the particular OS thread when created. Calling a Tcl
-interpreter from a different thread raises an apartment error.
+Tcl can have many isolated interpreters, and each are tagged to the
+its particular OS thread when created. Python's _tkinter module checks
+if the calling Python thread is different than the Tcl/Tk thread, and if so,
+[waits one second][WaitForMainloop] for the Tcl/Tk main loop to begin
+dispatching. If there is a timeout, a RuntimeError is raised. On PyPy,
+a [NotImplementedError][PyPyNotImplemented] is raised.
 
-The _tkinter module detect if a Python thread is different
-from the Tcl interpreter thread, and then [waits one second][WaitForMainloop]
-to acquire a lock on the main thread. If there is a time-out,
-a RuntimeError is raised.
+For non-Tk calls into Tcl, Python will raise an apartment RuntimeError
+when calling a Tcl interpreter from a different thread.
 
-A common approach to avoid these errors involves setting up 
+A common approach to avoid these errors involves setting up
 [periodic polling][PollQueue] of a [message queue][PollRecipe] from
-the Tk main thread, which can slow the responsiveness of the GUI.
+the Tcl/Tk main loop, which can slow the responsiveness of the GUI.
 
 The approach used in `tkthread` is to use the Tcl/Tk `thread::send`
-messaging to notify the main thread's Tcl/Tk event loop
-of a call for execution. This interrupt-style architecture has lower
-latency and better CPU utilization than periodic polling.
+messaging to notify the Tcl/Tk main loop of a call for execution.
+This interrupt-style architecture has lower latency and better
+CPU utilization than periodic polling.
 
 ## Usage
 
@@ -51,7 +52,7 @@ synchronously interact with the main thread.
     time.sleep(2)  # _tkinter.c:WaitForMainloop fails
     root.mainloop()
 
-The `tkt` instance is callable, and will wait for the main thread
+The `tkt` instance is callable, and will wait for the Tcl/Tk main loop
 to execute and compute a result which is then passed back for
 return in the calling thread. A non-synchronous version also exists that
 does not block:
@@ -88,3 +89,4 @@ Licensed under the Apache License, Version 2.0 (the "License")
 [PollQueue]: http://effbot.org/zone/tkinter-threads.htm
 [PollRecipe]: https://www.oreilly.com/library/view/python-cookbook/0596001673/ch09s07.html
 [WaitForMainloop]: https://github.com/python/cpython/blob/38df97a03c5102e717a110ab69bff8e5c9ebfd08/Modules/_tkinter.c#L342
+[PyPyNotImplemented]: https://bitbucket.org/pypy/pypy/src/d19ac6eec77b4e1859ab3dd8a5843989c4d4df99/lib_pypy/_tkinter/app.py?fileviewer=file-view-default#app.py-281
