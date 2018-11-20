@@ -93,12 +93,9 @@ import sys
 if sys.version < '3':
     import Tkinter as tk
     import Queue as queue
-    _main_thread = threading.current_thread()
-
 else:
     import tkinter as tk
     import queue
-    _main_thread = threading.main_thread()
 
 from ._version import __version__
 
@@ -164,8 +161,7 @@ class TkThread(object):
             raise RuntimeError('TkThread instance already created')
         root.tkt = self
 
-        if threading.current_thread() is not _main_thread:
-            raise RuntimeError('Must be started from main thread')
+        self._main_thread = threading.current_thread()
         self.root = root
         self.root.eval('package require Thread')
         self._main_thread_id = self.root.eval('thread::id')
@@ -219,7 +215,7 @@ class TkThread(object):
 
     def __call__(self, func, *args, **kwargs):
         """Apply args and kwargs to function and return its result"""
-        if threading.current_thread() is _main_thread:
+        if threading.current_thread() is self._main_thread:
             return func(*args, **kwargs)
         else:
             tres = Result()
