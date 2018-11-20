@@ -211,10 +211,10 @@ class TkThread(object):
         command = 'thread::send  %s "%s"' % (self._main_thread_id,
                                              self._call_from_name)
         while self._running:
-            func = self._thread_queue.get()
-            if func is None:
+            item = self._thread_queue.get()
+            if item is None:
                 break
-            self._call_from_data.append(func)
+            self._call_from_data.append(item)
             tcl.eval(command)
 
     def __call__(self, func, *args, **kwargs):
