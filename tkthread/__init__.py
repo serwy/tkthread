@@ -134,10 +134,6 @@ class TkThread(object):
     def __init__(self, root):
         """TkThread object for the root 'tkinter.Tk' object"""
 
-        if hasattr(root, 'tkt'):
-            raise RuntimeError('TkThread instance already created')
-        root.tkt = self
-
         self._main_thread = threading.current_thread()
         self.root = root
         self.root.eval('package require Thread')
