@@ -1,38 +1,36 @@
+#
+# Copyright 2018 Roger D. Serwy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 """
-tkthread - calling the Tcl/Tk event loop
-           with Python multi-threading
-
-Versions - CPython 2.7/3.x, PyPy 2.7/3.x
-
-Roger D. Serwy
-2018-03-23
-
-Synopsis
+tkthread
 --------
 
-The `tkthread` module easily allows Python threads
-to interact with Tk.
+Easy multithreading with Tkinter on CPython 2.7/3.x and PyPy 2.7/3.x.
 
 
 Background
 ----------
 
-The Tcl/Tk language is shipped with Python, and follows a
-different threading model than Python itself which can
-raise obtuse errors when mixing Python threads with Tk, such as:
+Multithreading with `Tkinter` can often cause the following errors:
 
     RuntimeError: main thread is not in main loop
     RuntimeError: Calling Tcl from different apartment
     NotImplementedError: Call from another thread
 
-Tcl can have many isolated interpreters running, and are
-tagged to a particular OS thread. Calling a Tcl interpreter
-from a different thread raises the apartment error.
-
-The _tkinter module detect if a Python thread is different
-from the Tcl interpreter thread, and then waits one second
-to acquire a lock on the main thread. If there is a time-out,
-a RuntimeError is raised.
+This module allows Python multithreading to cooperate with Tkinter.
 
 Usage
 -----
@@ -40,50 +38,28 @@ Usage
 The `tkthread` module provides the `TkThread` class,
 which can synchronously interact with the main thread.
 
-    import time
-    import threading
+    from tkthread import tk, TkThread
 
+    root = tk.Tk()        # create the root window
+    tkt = TkThread(root)  # make the thread-safe callable
+
+    import threading, time
     def run(func):
         threading.Thread(target=func).start()
 
-    from tkthread import tk, TkThread
-
-    root = tk.Tk()
-    root.wm_title('initializing...')
-
-    tkt = TkThread(root)  # make the thread-safe callable
-
-    run(lambda: root.wm_title('FAILURE'))
-    run(lambda: tkt(root.wm_title, 'SUCCESS'))
+    run(lambda:     root.wm_title('FAILURE'))
+    run(lambda: tkt(root.wm_title,'SUCCESS'))
 
     root.update()
     time.sleep(2)  # _tkinter.c:WaitForMainloop fails
     root.mainloop()
+
 
 There is an optional `.install()` method on `TkThread` which
 intercepts Python-to-Tk calls. This must be called on the
 default root, before the creation of child widgets. There is
 a slight performance penalty for Tkinter widgets that operate only
 on the main thread.
-
-
-Legal
------
-
-Copyright 2018 Roger D. Serwy
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
 """
 import functools
 import threading
@@ -121,7 +97,7 @@ class Result(object):
             return self.result
 
 class _TkIntercept(object):
-    """ wrapper to a _tkinter.tkapp object """
+    """wrapper to a _tkinter.tkapp object """
 
     # set of functions to intercept
     _intercept = set(['call', 'createcommand',
@@ -156,6 +132,7 @@ class _TkIntercept(object):
 
 class TkThread(object):
     def __init__(self, root):
+        """TkThread object for the root 'tkinter.Tk' object"""
 
         if hasattr(root, 'tkt'):
             raise RuntimeError('TkThread instance already created')
