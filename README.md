@@ -22,7 +22,7 @@ a [NotImplementedError][PyPyNotImplemented] is raised.
 For non-Tk calls into Tcl, Python will raise an apartment RuntimeError
 when calling a Tcl interpreter from a different thread.
 
-A common approach to avoid these errors involves setting up
+A common approach to avoid these errors involves using `.after` to set up
 [periodic polling][PollQueue] of a [message queue][PollRecipe] from
 the Tcl/Tk main loop, which can slow the responsiveness of the GUI.
 
@@ -85,6 +85,13 @@ use `root` as the master.
 ## License
 
 Licensed under the Apache License, Version 2.0 (the "License")
+
+## See Also
+
+These libraries offer similar functionality, using periodic polling:
+* https://github.com/RedFantom/mtTkinter
+* https://github.com/abarnert/mttkinter
+* https://pypi.org/project/threadsafe-tkinter
 
 [PollQueue]: http://effbot.org/zone/tkinter-threads.htm
 [PollRecipe]: https://www.oreilly.com/library/view/python-cookbook/0596001673/ch09s07.html
