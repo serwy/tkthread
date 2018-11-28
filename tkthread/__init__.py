@@ -92,7 +92,8 @@ class Result(object):
     def get(self):
         self.event.wait()
         if self.is_error:
-            raise RuntimeError(repr(self.result))
+            exc_type, exc_value, tb = self.result
+            raise exc_type(exc_value)
         else:
             return self.result
 
@@ -165,11 +166,12 @@ class TkThread(object):
             result = func(*args, **kwargs)
         except BaseException as exc:
             error = True
-            result = exc
-
-        if tres:
-            self._results.remove(tres)
-            tres.set(result, error)
+            result = sys.exc_info()
+            raise  # show the error
+        finally:
+            if tres:
+                self._results.remove(tres)
+                tres.set(result, error)
 
     def _tcl_thread(self):
         # Operates in its own thread, with its own Tcl interpreter
