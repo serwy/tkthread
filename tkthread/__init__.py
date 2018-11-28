@@ -213,5 +213,6 @@ class TkThread(object):
         self._thread_queue.put(None)
         while self._results:
             tr = self._results.pop()
-            tr.set('destroying', is_error=True)
+            tr.set((RuntimeError, 'destroyed', None),
+                   is_error=True)
 
