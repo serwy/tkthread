@@ -170,8 +170,8 @@ class TkThread(object):
             raise  # show the error
         finally:
             if tres:
-                self._results.remove(tres)
                 tres.set(result, error)
+                self._results.discard(tres)
 
     def _tcl_thread(self):
         # Operates in its own thread, with its own Tcl interpreter
@@ -210,9 +210,11 @@ class TkThread(object):
         Result objects from being set to error.
         """
         self._running = False
-        self._thread_queue.put(None)
+        self._thread_queue.put(None)  # unblock _tcl_thread queue
         while self._results:
-            tr = self._results.pop()
-            tr.set((RuntimeError, 'destroyed', None),
-                   is_error=True)
-
+            try:
+                tr = self._results.pop()
+                tr.set((RuntimeError, 'destroyed', None),
+                       is_error=True)
+            except KeyError:
+                pass
