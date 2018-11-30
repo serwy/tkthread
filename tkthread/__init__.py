@@ -126,11 +126,6 @@ class _TkIntercept(object):
         else:
             return ret
 
-    def __setattr__(self, name, value):  # FIXME: needed?
-        if name in self._intercept:
-            raise AttributeError('%s is read-only' % name)
-        object.__setattr__(self, name, value)
-
 
 class TkThread(object):
     def __init__(self, root):
