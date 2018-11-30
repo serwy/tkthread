@@ -97,34 +97,18 @@ class Result(object):
         else:
             return self.result
 
+
 class _TkIntercept(object):
     """wrapper to a _tkinter.tkapp object """
-
-    # set of functions to intercept
-    _intercept = set(['call', 'createcommand',
-                      'setvar', 'globalsetvar',
-                      'getvar', 'globalgetvar',
-                      'unsetvar', 'globalunsetvar',
-                      'eval',
-                      ])
 
     def __init__(self, tk, tkt):
         object.__setattr__(self, '__tk__', tk)
         object.__setattr__(self, '__tkt__', tkt)
 
-        lookup = {}
-        for name in self._intercept:
-            what = getattr(tk, name)
-            lookup[name] = functools.partial(tkt, what)
-
-        object.__setattr__(self, '__lookup__', lookup)
-
     def __getattr__(self, name):
-        ret = self.__lookup__.get(name, None)
-        if ret is None:
-            return getattr(self.__tk__, name)
-        else:
-            return ret
+        # every member of .tkapp is callable
+        func = getattr(self.__tk__, name)
+        return functools.partial(self.__tkt__, func)
 
 
 class TkThread(object):
