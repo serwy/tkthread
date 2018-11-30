@@ -102,9 +102,10 @@ class _TkIntercept(object):
 
     # set of functions to intercept
     _intercept = set(['call', 'createcommand',
-                      'setvar','globalsetvar',
+                      'setvar', 'globalsetvar',
                       'getvar', 'globalgetvar',
-                      'unsetvar', 'globalunsetvar'
+                      'unsetvar', 'globalunsetvar',
+                      'eval',
                       ])
 
     def __init__(self, tk, tkt):
