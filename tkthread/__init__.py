@@ -102,13 +102,13 @@ class _TkIntercept(object):
     """wrapper to a _tkinter.tkapp object """
 
     def __init__(self, tk, tkt):
-        object.__setattr__(self, '__tk__', tk)
-        object.__setattr__(self, '__tkt__', tkt)
+        self.__tk = tk
+        self.__tkt = tkt
 
     def __getattr__(self, name):
         # every member of .tkapp is callable
-        func = getattr(self.__tk__, name)
-        return functools.partial(self.__tkt__, func)
+        func = getattr(self.__tk, name)
+        return functools.partial(self.__tkt, func)
 
 
 class TkThread(object):
