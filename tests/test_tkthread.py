@@ -41,11 +41,11 @@ class ExpectedTestError(Exception):
 class TestResultClass(unittest.TestCase):
 
     def test_event(self):
-        r = tkthread.Result()
+        r = tkthread._Result()
         self.assertEqual(r.event.is_set(), False)
 
     def test_set_result(self):
-        r = tkthread.Result()
+        r = tkthread._Result()
         self.assertEqual(r.result, None)
 
         @thread_start(r)
@@ -56,7 +56,7 @@ class TestResultClass(unittest.TestCase):
         self.assertEqual(r.result, True)
 
     def test_set_error(self):
-        r = tkthread.Result()
+        r = tkthread._Result()
 
         @thread_start(r)
         def tset(r):
@@ -68,7 +68,7 @@ class TestResultClass(unittest.TestCase):
             r.get()
 
     def test_wait(self):
-        r = tkthread.Result()
+        r = tkthread._Result()
         done = []
 
         @thread_start(r)

@@ -75,9 +75,9 @@ else:
 
 from ._version import __version__
 
-__all__ = ['TkThread', 'tk', 'Result', '__version__']
+__all__ = ['TkThread', 'tk', '__version__']
 
-class Result(object):
+class _Result(object):
     """Cross-thread synchronization of a result"""
     def __init__(self):
         self.event = threading.Event()
@@ -173,7 +173,7 @@ class TkThread(object):
         if threading.current_thread() is self._main_thread:
             return func(*args, **kwargs)
         else:
-            tres = Result()
+            tres = _Result()
             self._results.add(tres)
             self._thread_queue.put((func, args, kwargs, tres))
             return tres.get()
@@ -187,7 +187,7 @@ class TkThread(object):
 
         Threads that call into TkThread must be stopped
         before calling .destroy() to avoid missing pending
-        Result objects from being set to error.
+        calls from being set to error.
         """
         self._running = False
         self._thread_queue.put(None)  # unblock _tcl_thread queue
