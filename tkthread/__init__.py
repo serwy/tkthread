@@ -137,6 +137,7 @@ class TkThread(object):
             raise RuntimeError('root can not have children')
         new_tk = _TkIntercept(self.root.tk, self)
         self.root.tk = new_tk
+        return self
 
     def _call_from(self):
         # This executes in the main thread, called from the Tcl interpreter
