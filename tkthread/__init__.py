@@ -182,8 +182,8 @@ class TkThread(object):
         """Non-blocking, no-synchronization call"""
         self._thread_queue.put((func, args, kwargs, None))
 
-    def wait(self):
-        """Wait for all .nosync calls to complete"""
+    def flush(self):
+        """Flush all .nosync calls"""
         self(int)  # a basic callable to put on the queue
 
     def destroy(self):
