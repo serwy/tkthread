@@ -1,8 +1,8 @@
 from setuptools import setup
 from tkthread._version import __version__
 
-with open('README.md', encoding='utf-8') as fid:
-    LONG_DESCRIPTION = fid.read()
+with open('README.md', 'rb') as fid:
+    LONG_DESCRIPTION = fid.read().decode('utf8')
 
 setup(
     name='tkthread',
