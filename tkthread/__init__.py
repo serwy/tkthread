@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Roger D. Serwy
+# Copyright 2018, 2021 Roger D. Serwy
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,8 +32,36 @@ Multithreading with `Tkinter` can often cause the following errors:
 
 This module allows Python multithreading to cooperate with Tkinter.
 
-Usage
------
+
+Experimental Usage CPython
+--------------------------
+
+For CPython 2.7/3.x, `tkhread.tkinstall()` can be called first,
+and will patch Tkinter to re-route calls to the main thread,
+using the "willdispatch" internal API call.
+
+    import tkthread; tkthread.tkinstall()
+    import tkinter as tk
+
+    root = tk.Tk()
+
+    import threading
+    def thread_run(func): threading.Thread(target=func).start()
+
+    @thread_run
+    def func():
+        root.wm_title('WORKS')
+        print(threading.current_thread())
+
+        @tkthread.main(root)    # run on main thread
+        @tkthread.current(root) # run on current thread
+        def testfunc():
+            tk.Label(text=threading.current_thread()).pack()
+
+    root.mainloop()
+
+Usage CPython/Pypy
+------------------
 
 The `tkthread` module provides the `TkThread` class,
 which can synchronously interact with the main thread.
@@ -74,8 +102,10 @@ else:
     import queue
 
 from ._version import __version__
+from ._willdispatch import tkinstall, main, current
 
-__all__ = ['TkThread', 'tk', '__version__']
+__all__ = ['TkThread', 'tk', '__version__', 'tkinstall', 'main', 'current']
+
 
 class _Result(object):
     """Cross-thread synchronization of a result"""
