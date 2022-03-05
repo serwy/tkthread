@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Roger D. Serwy
+# Copyright 2021, 2022 Roger D. Serwy
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ The C code already checks the running thread and serializes the
 request to the main thread with `Tkapp_ThreadSend()`. That
 function acquires a mutex before adding the event to the Tcl event queue.
 
-There is a threading race condition, where `disptaching` can be set to
+There is a threading race condition, where `dispatching` can be set to
 zero before the thread reads it. This is why there is a retry loop on
 the function call.
 
@@ -33,8 +33,18 @@ the function call.
 from __future__ import print_function
 import traceback
 import sys
+import threading
 
 from . import tk
+
+try:
+    # Python 3.4+
+    _main_thread_ = threading.main_thread()
+except AttributeError:
+    # Python 3.3 support
+    # we will assume that import is done on the main thread
+    _main_thread_ = threading.current_thread()
+
 
 class _tk_dispatcher(object):
     """ Force `WaitForMainloop` to return 1"""
@@ -89,12 +99,43 @@ class _tk_dispatcher(object):
 
 class _Tk(tk.Tk):
     def __init__(self, *args, **kw):
-        tk._Tk_original_.__init__(self, *args, **kw)
-        # patch the existing Tkapp object
-        self.tk = _tk_dispatcher(self.tk)
+        # GOAL: ensure init is performed on main thread
+        # for Tcl/Tk to be bound to it.
+        # WHY: matplotlib can create figure managers anywhere
+
+        def _actual_init():
+            tk._Tk_original_.__init__(self, *args, **kw)
+            # patch the existing Tkapp object
+            self.tk = _tk_dispatcher(self.tk)
+
+        if threading.current_thread() is _main_thread_:
+            # on main thread, proceed
+            _actual_init()
+        else:
+            # using Tk?
+
+            if len(args) >= 4:
+                # hack, assuming arg order
+                usetk = args[3]
+            else:
+                usetk = kw.get('useTk', True)
+
+            if usetk:
+                # we are using Tk, not on main thread
+                if tk._default_root is None:
+                    raise Exception(
+                        'Tcl/Tk default root instance not initialized. '
+                        'Try using `tkthread.tkinstall(ensure_root=True)`'
+                        )
+
+                main(sync=True)(_actual_init)
+            else:
+                # since we are not using Tk, let it initialize
+                # on this thread
+                _actual_init()
 
 
-def tkinstall():
+def tkinstall(ensure_root=False):
     """Replace tkinter's `Tk` class with a thread-enabled version"""
     import platform
     runtime = platform.python_implementation()
@@ -106,19 +147,128 @@ def tkinstall():
         tk.Tk = _Tk
 
 
-def main(widget):
-    """Decorator to run callable on Tcl/Tk mainthread."""
-    def wrapped(func):
-        widget.tk.willdispatch()
-        widget.after(0, func)
-        return func
-    return wrapped
+    if ensure_root:
+        if tk._default_root:
+            tk._default_root.update()  # in case of enqueued destruction
+
+        if tk._default_root is None:
+            w = tk.Tk()
+            w.withdraw()
+            return w
+        else:
+            return tk._default_root
 
 
-def current(widget):
+def _tkuninstall():
+    """Uninstall the thread-enabled version of Tk"""
+    orig = tk.__dict__.get('_Tk_original_', None)
+    if orig is None:
+        return
+    if tk.Tk is not orig:
+        tk.Tk = orig
+
+
+def current(widget=None, sync=True):
     """Decorator to run callable on the current thread.
         Useful for quickly changing with `tkthread.main`"""
+
+    # sync is a no-op
     def wrapped(func):
         func()
         return func
     return wrapped
+
+
+_ENSURE_COUNT = 10
+
+def _ensure_after_idle(widget, func, tries=None):
+    if tries is None:
+        tries = _ENSURE_COUNT
+
+    for n in range(tries):
+        widget.willdispatch()
+        try:
+            result = widget.after_idle(func)
+            break
+        except RuntimeError as exc:
+            # try again
+            pass
+    else:
+        # unable to call after_idle
+        raise RuntimeError('unable to call after_idle')
+    return result
+
+
+def main(widget=None, sync=True):
+    """Decorator to run callable (no arguments) on Tcl/Tk mainthread.
+
+    example:
+
+    @tkthread.main(sync=True)
+    def _():
+        ...  # this code runs on the main thread
+
+    """
+    def wrapped(func):
+        w = widget
+        if w is None:
+            w = tk._default_root
+
+        if threading.current_thread() is _main_thread_:
+            if sync:
+                func()
+            else:
+                w.after_idle(func)
+        else:
+            if sync:
+                ev = threading.Event()
+                def sync_wrapped(_func=func, _ev=ev):
+                    try:
+                        _func()
+                    finally:
+                        _ev.set()
+                _ensure_after_idle(w, sync_wrapped)
+                ev.wait()
+
+            else:
+                _ensure_after_idle(w, func)
+
+
+        return func
+    return wrapped
+
+
+def _callsync(sync, func, args, kwargs):
+
+    d = dict(
+        outerr=None,   # result: output, error
+        func=func,     # callable
+        args=args,
+        kwargs=kwargs,
+        )
+
+    def _handler(d=d):
+        func = d['func']
+        args = d['args']
+        kwargs = d['kwargs']
+        try:
+            error = None
+            result = func(*args, **kwargs)
+        except BaseException as exc:
+            result = None
+            error = exc
+
+        d['outerr'] = (result, error)
+
+    main(sync=sync)(_handler)
+    if sync:
+        result, error = d['outerr']
+        if error is not None:
+            raise error
+        else:
+            return result
+
+
+def call(func, *args, **kwargs):
+    """Call the function on the main thread, wait for result."""
+    return _callsync(True, func, args, kwargs)

@@ -1,8 +1,43 @@
+#
+# Copyright 2018, 2021, 2022 Roger D. Serwy
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""
+
+environment variables that affect the test
+
+_TKFAST=1
+    skip tests that take a long time. see `skip_if_tkfast`
+
+_TKINSTALL=
+    global - causes some TestTkThread tests to fail
+    0 - prevents install when testing TestWillDispatch
+
+"""
+
 import unittest
 import threading
 import time
+import os
 
 import tkthread
+
+if os.environ.get('_TKINSTALL', '0') in ('2', 'global'):
+    _root = tkthread.tkinstall(ensure_root=True)
+    if _root:
+        _root.update()
 
 
 def run(func, args=(), kwargs=None, name=None):
@@ -36,6 +71,21 @@ def call_until(timeout=None):
 
 class ExpectedTestError(Exception):
     pass
+
+
+class CustomTk(tkthread.tk.Tk):
+    def report_callback_exception(self, *args):
+        if getattr(self, '_inhibit_report_callback', False) is False:
+            return tkthread.tk.Tk.report_callback_exception(self, *args)
+
+
+
+def skip_if_tkfast(func):
+    """Skip a long test if _TKFAST=1 is set in the environment variables"""
+    if os.environ.get('_TKFAST', '0') in ('1', ):
+        return unittest.skip('_TKFAST=1')(func)
+    else:
+        return func
 
 
 class TestResultClass(unittest.TestCase):
@@ -90,7 +140,7 @@ class TestTkThread(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.root = tkthread.tk.Tk()
+        cls.root = CustomTk()
         cls.root.withdraw()
 
     @classmethod
@@ -99,6 +149,7 @@ class TestTkThread(unittest.TestCase):
         cls.root = None
 
     def setUp(self):
+        self.root._inhibit_report_callback = False
         self.had_error = False
         self.tkt = tkthread.TkThread(self.root)
 
@@ -132,9 +183,11 @@ class TestTkThread(unittest.TestCase):
 
         self.assertFalse(self.had_error)
 
+    @skip_if_tkfast
     def test_no_wrap(self):
         # Sanity check.
         # If this test fails, then something has changed with Tkinter
+        # This test will fail if "_TKINSTALL=global"
 
         @thread_start(self)
         def tstart(self):
@@ -148,6 +201,7 @@ class TestTkThread(unittest.TestCase):
 
     def test_call_error(self):
         # This test will cause a traceback to display
+        self.root._inhibit_report_callback = True
 
         @thread_start(self)
         def tstart(self):
@@ -163,6 +217,7 @@ class TestTkThread(unittest.TestCase):
 
         self.assertTrue(self.had_error)
 
+    @skip_if_tkfast
     def test_install(self):
         _orig_tk = self.root.tk
         self.tkt.install()
@@ -247,6 +302,98 @@ class TestTkThread(unittest.TestCase):
         block.join(5.0)
         self.assertFalse(block.is_alive())
         self.assertTrue(self.has_error)
+
+
+class TestWillDispatch(unittest.TestCase):
+
+    def setUp(self):
+        if os.environ.get('_TKINSTALL', '1') != '0':
+            self.root = tkthread.tkinstall(ensure_root=True)
+        else:
+            self.root = CustomTk()
+            self.root.withdraw()
+
+    def tearDown(self):
+        self.root.update()  # without a call to update on 2.7, 3.3:
+                            # error occurs about ttk::ThemeChanged
+
+        self.root.destroy()
+        tkthread._willdispatch._tkuninstall()
+
+    def test_main(self):
+        d = dict(called=False, thread=False)
+        @tkthread.main()
+        def _():
+            d['called'] = True
+
+        t = threading.current_thread()
+
+        @thread_start()
+        def tstart():
+            d['calling'] = threading.current_thread()
+            @tkthread.main()
+            def func():
+                d['thread'] = threading.current_thread()
+
+
+        while tstart.is_alive():
+            self.root.update()
+
+        self.assertIs(d['called'], True)
+        self.assertIs(d['thread'], t)
+
+    def test_current(self):
+        d = dict(called=False, thread=False)
+        @tkthread.current()
+        def _():
+            d['called'] = True
+
+        t = threading.current_thread()
+
+        @thread_start()
+        def tstart():
+            d['calling'] = threading.current_thread()
+            @tkthread.current()
+            def func():
+                d['thread'] = threading.current_thread()
+
+        while tstart.is_alive():
+            self.root.update()
+
+        self.assertIs(d['called'], True)
+        self.assertIs(d['thread'], tstart)
+
+    def test_call_on_main(self):
+        # make sure a mainthread call is made immediately
+        a = []
+        def func():
+            a.append(0)
+        tkthread.call(func)  # call on main thread
+        self.assertEqual(a, [0])
+
+    def test_call_on_thread(self):
+        d = {'pending':None}
+
+        t = threading.current_thread()
+        @thread_start()
+        def tstart():
+            d['thread'] = threading.current_thread()
+            def func():
+                d['called'] = True
+                return 123
+
+            d['pending'] = True
+            res = tkthread.call(func)  # blocks
+            d['pending'] = False
+
+
+        self.assertIs(d['pending'], True)
+        while tstart.is_alive():
+            self.root.update()
+        self.assertIs(d['pending'], False)
+
+        self.assertTrue(d['called'])
+        self.assertIsNot(d['thread'], t)
 
 
 if __name__ == '__main__':

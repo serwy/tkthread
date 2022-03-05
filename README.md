@@ -37,8 +37,33 @@ The experimental approach used in `tkthread` is to use `tkthread.tkinstall()`
 to patch Tkinter when make calls into Tcl/Tk. This only works on CPython and
 it does not require the `Thread` package in Tcl.
 
+## Usage on CPython (simplest)
 
-## Usage on CPython/PyPy
+For CPython 2.7/3.x, `tkhread.tkinstall()` can be called first,
+and will patch Tkinter to re-route threaded calls to the Tcl interpreter
+using the `willdispatch` internal API call.
+
+    import tkthread; tkthread.tkinstall()
+    import tkinter as tk
+
+    root = tk.Tk()
+
+    import threading
+    def thread_run(func): threading.Thread(target=func).start()
+
+    @thread_run
+    def func():
+        root.wm_title(threading.current_thread())
+
+        @tkthread.main(root)
+        @tkthread.current(root)
+        def testfunc():
+            tk.Label(text=threading.current_thread()).pack()
+
+    root.mainloop()
+
+
+## Usage on CPython/PyPy (compatibility/legacy)
 
 The `tkthread` module provides the `TkThread` class, which can
 synchronously interact with the main thread.
@@ -86,32 +111,6 @@ to keep the primary Tcl/Tk interpreter active. Future Toplevel windows
 use `root` as the master.
 
 
-## Experimental Usage on CPython (simpler)
-
-For CPython 2.7/3.x, `tkhread.tkinstall()` can be called first,
-and will patch Tkinter to re-route threaded calls to the Tcl interpreter
-using the "willdispatch" internal API call.
-
-    import tkthread; tkthread.tkinstall()
-    import tkinter as tk
-
-    root = tk.Tk()
-
-    import threading
-    def thread_run(func): threading.Thread(target=func).start()
-
-    @thread_run
-    def func():
-        root.wm_title(threading.current_thread())
-
-        @tkthread.main(root)
-        @tkthread.current(root)
-        def testfunc():
-            tk.Label(text=threading.current_thread()).pack()
-
-    root.mainloop()
-
-
 ## Install
 
     pip install tkthread
@@ -128,13 +127,19 @@ which is needed by `TkThread`.
 
 On Debian/Ubuntu:
 
-	`apt install tcl-thread`
+	apt install tcl-thread
 
 On Windows, you'll need to manually update your Tcl installation to include
 the `Thread` package.
 
 The simpler solution is to use `tkthread.tkinstall()` instead.
 
+
+When using Matplotlib, you may receive this warning message:
+
+    UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
+
+It can be ignored.
 
 ## License
 
