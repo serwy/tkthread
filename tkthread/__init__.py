@@ -102,7 +102,9 @@ else:
     import queue
 
 from ._version import __version__
-from ._willdispatch import tkinstall, main, current, call
+from ._willdispatch import (
+    tkinstall, main, current, call, called_on_main
+    )
 
 __all__ = ['TkThread', 'tk', '__version__',
            'tkinstall', 'main', 'current', 'call']

@@ -261,6 +261,7 @@ def _callsync(sync, func, args, kwargs):
         d['outerr'] = (result, error)
 
     main(sync=sync)(_handler)
+
     if sync:
         result, error = d['outerr']
         if error is not None:
@@ -272,3 +273,24 @@ def _callsync(sync, func, args, kwargs):
 def call(func, *args, **kwargs):
     """Call the function on the main thread, wait for result."""
     return _callsync(True, func, args, kwargs)
+
+
+class called_on_main:
+    """Decorator to cause function call to execute on the main thread.
+
+    example:
+
+    @tkthread.called_on_main
+    def gui_code():
+        ...
+
+    gui_code()  # calling will automatically dispatch to main thread
+    """
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kw):
+        return call(self.func, *args, **kw)
+
+    def __repr__(self):
+        return '<called_on_main %r>' % self.func

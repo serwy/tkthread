@@ -396,5 +396,33 @@ class TestWillDispatch(unittest.TestCase):
         self.assertIsNot(d['thread'], t)
 
 
+    def test_called_on_thread(self):
+
+        d = {}
+        main = tkthread._willdispatch._main_thread_
+
+        @tkthread.called_on_main
+        def main_func(*args, **kw):
+            d['args'] = args
+            d['kw'] = kw
+            d['thread'] = threading.current_thread()
+            return 'done'
+
+        t = threading.current_thread()
+        @thread_start()
+        def tstart():
+            r = main_func(1, 2, c=3)
+            d['result'] = r
+
+        while tstart.is_alive():
+            self.root.update()
+
+        self.assertEqual(d['result'], 'done')
+        self.assertIs(d['thread'], main)
+        self.assertEqual(d['args'], (1, 2))
+        self.assertEqual(d['kw'], {'c':3})
+
+
+
 if __name__ == '__main__':
     unittest.main()
