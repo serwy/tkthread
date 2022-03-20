@@ -28,12 +28,12 @@ A common approach to avoid these errors involves using `.after` to set up
 [periodic polling][PollQueue] of a [message queue][PollRecipe] from
 the Tcl/Tk main loop, which can slow the responsiveness of the GUI.
 
-The current approach used in `tkthread` is to use the Tcl/Tk `thread::send`
+The initial approach used in `tkthread` is to use the Tcl/Tk `thread::send`
 messaging to notify the Tcl/Tk main loop of a call for execution.
 This interrupt-style architecture has lower latency and better
 CPU utilization than periodic polling. This works with CPython and PyPy.
 
-The experimental approach used in `tkthread` is to use `tkthread.tkinstall()`
+The newer approach used in `tkthread` is to use `tkthread.tkinstall()`
 to patch Tkinter when make calls into Tcl/Tk. This only works on CPython and
 it does not require the `Thread` package in Tcl.
 
@@ -110,13 +110,26 @@ A good practice is to create a root window and then call `root.withdraw()`
 to keep the primary Tcl/Tk interpreter active. Future Toplevel windows
 use `root` as the master.
 
-
 ## Install
 
     pip install tkthread
 
+## API
 
-## Known Errors
+- `tkthread.tkinstall()`
+    - patch Tkinter to support multi-threading.
+- `tkthread.call(func, *args, **kw)`
+    - call `func` on the main thread, with arguments and keyword arguments.
+- `@tkthread.called_on_main`
+    - decorator to dispatch the function call on the main thread from the calling thread.
+- `@tkthread.main()`
+    - decorator to call a function immediately on the main thread.
+- `@tkthread.current()`
+    - decorator to call a function immediately on the current thread.
+- `TkThread(root)`
+    - class to dispatch thread calls to Tk using `thread::send`
+
+## Known Error Messages
 
 You may receive this error when using `tkthread.TkThread(root)`:
 
@@ -135,11 +148,11 @@ the `Thread` package.
 The simpler solution is to use `tkthread.tkinstall()` instead.
 
 
-When using Matplotlib, you may receive this warning message:
+When using Matplotlib, you may receive a warning message that can be ignored:
 
     UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
 
-It can be ignored.
+The `demo/mpl_plot.py` script shows an example with this message.
 
 ## License
 
