@@ -107,7 +107,9 @@ from ._willdispatch import (
     )
 
 __all__ = ['TkThread', 'tk', '__version__',
-           'tkinstall', 'main', 'current', 'call']
+           'tkinstall', 'main', 'current', 'call', 'patch']
+
+patch = tkinstall  # Issue #4
 
 
 class _Result(object):

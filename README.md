@@ -2,7 +2,7 @@
 
 Easy multithreading with Tkinter on CPython 2.7/3.x and PyPy 2.7/3.x.
 
-    import tkthread; tkthread.tkinstall()   # do this before importing tkinter
+    import tkthread; tkthread.patch()   # do this before importing tkinter
 
 ## Background
 
@@ -39,11 +39,11 @@ it does not require the `Thread` package in Tcl.
 
 ## Usage on CPython (simplest)
 
-For CPython 2.7/3.x, `tkhread.tkinstall()` can be called first,
-and will patch Tkinter to re-route threaded calls to the Tcl interpreter
-using the `willdispatch` internal API call.
+For CPython 2.7/3.x, `tkthread.patch()` (same as `tkthread.tkinstall()`)
+can be called first, and will patch Tkinter to re-route threaded calls to the
+Tcl interpreter using the `willdispatch` internal API call.
 
-    import tkthread; tkthread.tkinstall()
+    import tkthread; tkthread.patch()
     import tkinter as tk
 
     root = tk.Tk()
@@ -116,8 +116,10 @@ use `root` as the master.
 
 ## API
 
-- `tkthread.tkinstall()`
+- `tkthread.patch()`
     - patch Tkinter to support multi-threading.
+- `tkthread.tkinstall()`
+    - same as `.patch()`
 - `tkthread.call(func, *args, **kw)`
     - call `func` on the main thread, with arguments and keyword arguments.
 - `@tkthread.called_on_main`
@@ -145,7 +147,7 @@ On Debian/Ubuntu:
 On Windows, you'll need to manually update your Tcl installation to include
 the `Thread` package.
 
-The simpler solution is to use `tkthread.tkinstall()` instead.
+The simpler solution is to use `tkthread.patch()` instead.
 
 
 When using Matplotlib, you may receive a warning message that can be ignored:
