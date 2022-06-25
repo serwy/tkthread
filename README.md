@@ -131,7 +131,7 @@ use `root` as the master.
 - `TkThread(root)`
     - class to dispatch thread calls to Tk using `thread::send`
 
-## Known Error Messages
+## Known (and solved) Error Messages
 
 You may receive this error when using `tkthread.TkThread(root)`:
 
@@ -142,7 +142,7 @@ which is needed by `TkThread`.
 
 On Debian/Ubuntu:
 
-	apt install tcl-thread
+    apt install tcl-thread
 
 On Windows, you'll need to manually update your Tcl installation to include
 the `Thread` package.
