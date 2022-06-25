@@ -103,11 +103,16 @@ else:
 
 from ._version import __version__
 from ._willdispatch import (
-    tkinstall, main, current, call, called_on_main
+    tkinstall, main, current,
+    call, call_nosync,
+    called_on_main
     )
 
-__all__ = ['TkThread', 'tk', '__version__',
-           'tkinstall', 'main', 'current', 'call', 'patch']
+__all__ = [
+    'TkThread', 'tk', '__version__',
+    'tkinstall', 'patch', 'main', 'current',
+    'call', 'call_nosync',
+    ]
 
 patch = tkinstall  # Issue #4
 

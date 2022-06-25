@@ -231,8 +231,12 @@ def main(widget=None, sync=True):
                 ev.wait()
 
             else:
-                _ensure_after_idle(w, func)
-
+                th = threading.Thread(
+                    target=_ensure_after_idle,
+                    args=(w, func),
+                    name='tkthread.main')
+                th.daemon = True
+                th.start()
 
         return func
     return wrapped
@@ -273,6 +277,11 @@ def _callsync(sync, func, args, kwargs):
 def call(func, *args, **kwargs):
     """Call the function on the main thread, wait for result."""
     return _callsync(True, func, args, kwargs)
+
+
+def call_nosync(func, *args, **kwargs):
+    """Enqueue the function for calling on the main thread, immediately return."""
+    return _callsync(False, func, args, kwargs)
 
 
 class called_on_main:

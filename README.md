@@ -122,6 +122,10 @@ use `root` as the master.
     - same as `.patch()`
 - `tkthread.call(func, *args, **kw)`
     - call `func` on the main thread, with arguments and keyword arguments.
+    - waits for return value (or raises error)
+- `tkthread.call_nosync(func, *args, **kw)`
+    - call `func` on the main thread, with arguments and keyword arguments.
+    - returns immediately, ignore return `func` return or error.
 - `@tkthread.called_on_main`
     - decorator to dispatch the function call on the main thread from the calling thread.
 - `@tkthread.main()`

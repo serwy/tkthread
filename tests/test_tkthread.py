@@ -340,7 +340,56 @@ class TestWillDispatch(unittest.TestCase):
             self.root.update()
 
         self.assertIs(d['called'], True)
+        @tkthread.main()
+        def _():
+            d['called'] = True
+
+        t = threading.current_thread()
+
         self.assertIs(d['thread'], t)
+
+    def test_main_nosync(self):
+        d = dict()
+
+        main_thread = threading.current_thread()
+
+        @thread_start()
+        def tstart_nosync():
+
+            @tkthread.main(sync=False)
+            def func():
+                d['nosync'] = threading.current_thread()
+
+        @call_until(4.0)
+        def alive():
+            return tstart_nosync.is_alive()
+
+        self.assertFalse(tstart_nosync.is_alive())
+        self.assertFalse(alive)
+        self.assertFalse('nosync' in d)
+
+        @thread_start()
+        def tstart():
+            @tkthread.main(sync=True)
+            def func():
+                d['sync'] = threading.current_thread()
+
+        @call_until(4.0)
+        def has_thread():
+            self.root.update()
+            return 'sync' not in d
+
+
+        @call_until(4.0)
+        def tstart_timeout():
+            self.root.update()
+            return tstart.is_alive()
+
+        self.assertTrue('nosync' in d)
+        self.assertTrue('sync' in d)
+
+        self.assertIs(d['sync'], main_thread)
+        self.assertIs(d['nosync'], main_thread)
 
     def test_current(self):
         d = dict(called=False, thread=False)
