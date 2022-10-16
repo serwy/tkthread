@@ -34,6 +34,10 @@ from __future__ import print_function
 import traceback
 import sys
 import threading
+try:
+    import queue
+except:
+    import Queue as queue  # Py2.7
 
 from . import tk
 
@@ -76,9 +80,13 @@ class _tk_dispatcher(object):
                     # and the main thread event loop setting dispatch=0.
                     # As rare as the condition is, it needs to be handled.
                     if n < rcount:
-                        traceback.print_exc(file=sys.stderr)
-                        print('retrying %r %i of %i' % (name, n+1, rcount),
-                              file=sys.stderr)
+                        try:
+                            traceback.print_exc(file=sys.stderr)
+                            print('retrying %r %i of %i' % (name, n+1, rcount),
+                                  file=sys.stderr)
+                        except:
+                            # pythonw.exe sys.stderr is None
+                            pass
                         continue
                     else:
                         raise
@@ -199,6 +207,40 @@ def _ensure_after_idle(widget, func, tries=None):
     return result
 
 
+class _NoSyncHandler:
+    '''
+    _tkinter.c will dispatch non-mainthread calls to the mainthread,
+    but will create a Tcl_Condition variable that blocks the calling thread.
+    '''
+    def __init__(self):
+        self.q = queue.Queue()
+        self.th = threading.Thread(
+            target=self._dispatcher,
+            name='tkthread.nosync',
+            )
+        self.th.daemon=True
+        self.th.start()
+
+    def _dispatcher(self):
+        while True:
+            func, args, kwargs = self.q.get()
+            try:
+                func(*args, **kwargs)
+            except:
+                # show the error
+                try:
+                    traceback.print_exc(file=sys.stderr)
+                except:
+                    # pythonw.exe sys.stderr is None
+                    pass
+
+    def call(self, func, *args, **kw):
+        self.q.put((func, args, kw))
+
+
+_nosync_handler = _NoSyncHandler()
+
+
 def main(widget=None, sync=True):
     """Decorator to run callable (no arguments) on Tcl/Tk mainthread.
 
@@ -231,12 +273,7 @@ def main(widget=None, sync=True):
                 ev.wait()
 
             else:
-                th = threading.Thread(
-                    target=_ensure_after_idle,
-                    args=(w, func),
-                    name='tkthread.main')
-                th.daemon = True
-                th.start()
+                _nosync_handler.call(_ensure_after_idle, w, func)
 
         return func
     return wrapped

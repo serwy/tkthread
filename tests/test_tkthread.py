@@ -435,6 +435,9 @@ class TestWillDispatch(unittest.TestCase):
             res = tkthread.call(func)  # blocks
             d['pending'] = False
 
+        @call_until(4)
+        def has_started():
+            return d['pending'] is not True
 
         self.assertIs(d['pending'], True)
         while tstart.is_alive():
